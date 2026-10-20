@@ -1,0 +1,166 @@
+Index.Html
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Impossible Run</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#090d1c;color:white;font-family:Arial;text-align:center}
+h1{color:#57eaff;margin:16px 0 5px}
+#info{padding:10px;font-size:18px}
+canvas{width:96%;max-width:800px;background:#111b35;border:2px solid #5266a5;border-radius:12px;touch-action:none}
+button{padding:15px 22px;margin:6px;background:#27365e;color:white;border:1px solid #6c8bff;border-radius:12px;font-size:17px;font-weight:bold}
+#jump{background:#702cff}
+p{color:#bdc9ec;font-size:13px}
+</style>
+</head>
+<body>
+<h1>⚡ IMPOSSIBLE RUN</h1>
+<div id="info">LEVEL 1 / 100 | ❤️ 3</div>
+<canvas id="c" width="800" height="450"></canvas>
+<div>
+<button id="left">⬅ LEFT</button>
+<button id="jump">JUMP / START</button>
+<button id="right">RIGHT ➡</button>
+</div>
+<button onclick="restart()">RESTART LEVEL</button>
+<p>Reach the green portal. Avoid red spikes and orbs!</p>
+<p>Keyboard: A/D or ←/→ to move, Space to jump.</p>
+<script>
+const c=document.getElementById('c'),ctx=c.getContext('2d');
+const info=document.getElementById('info');
+const W=800,H=450;
+let level=1,lives=3,deaths=0,active=false,win=false;
+let p,ground,spikes,orbs,portal,frame=0,keys={};
+function start(){
+ p={x:35,y:360,w:22,h:30,vx:0,vy:0,ground:false};
+ ground=390;frame=0;active=false;win=false;
+ spikes=[];orbs=[];
+ let n=Math.min(3+Math.floor(level/3),22);
+ for(let i=0;i<n;i++){
+  let x=170+i*(570/n)+Math.random()*12;
+  spikes.push({x:x,y:ground-18,w:18,h:18});
+ }
+ let count=Math.min(1+Math.floor(level/7),10);
+ for(let i=0;i<count;i++){
+  orbs.push({x:180+i*(530/count),y:270+Math.random()*90,
+  base:270+Math.random()*90,r:9+Math.min(level/12,8),
+  speed:.025+level*.0015,phase:i*2});
+ }
+ portal={x:750,y:ground-55,w:24,h:55};
+ info.textContent='LEVEL '+level+' / 100 | ❤️ '+lives+' | FAILS '+deaths;
+ draw();
+}
+function restart(){lives=3;start()}
+function jump(){
+ if(win){level=1;lives=3;deaths=0;start();return}
+ active=true;
+ if(p.ground){p.vy=-11.5;p.ground=false}
+}
+document.getElementById('jump').onclick=jump;
+function hold(id,k){
+ let b=document.getElementById(id);
+ b.onpointerdown=e=>{e.preventDefault();keys[k]=true};
+ b.onpointerup=b.onpointerleave=b.onpointercancel=e=>{keys[k]=false};
+}
+hold('left','left');hold('right','right');
+onkeydown=e=>{
+ if(['ArrowLeft','ArrowRight',' ','ArrowUp'].includes(e.key))e.preventDefault();
+ if(e.key==='ArrowLeft'||e.key==='a')keys.left=true;
+ if(e.key==='ArrowRight'||e.key==='d')keys.right=true;
+ if((e.key===' '||e.key==='ArrowUp')&&!e.repeat)jump();
+};
+onkeyup=e=>{
+ if(e.key==='ArrowLeft'||e.key==='a')keys.left=false;
+ if(e.key==='ArrowRight'||e.key==='d')keys.right=false;
+};
+function hit(a,b){
+ return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+}
+function fail(){
+ deaths++;lives--;
+ if(lives<=0){
+  active=false;lives=3;
+  info.textContent='OUT OF LIVES! Tap RESTART LEVEL';
+ }else{
+  p.x=35;p.y=350;p.vy=0;
+  info.textContent='OUCH! ❤️ '+lives+' | FAILS '+deaths;
+ }
+}
+function update(){
+ if(!active||win)return;
+ frame++;
+ let speed=3+level*.018;
+ p.vx=((keys.right?1:0)-(keys.left?1:0))*speed;
+ p.x=Math.max(0,Math.min(W-p.w,p.x+p.vx));
+ p.vy+=.5+level*.002;
+ p.y+=p.vy;p.ground=false;
+ if(p.y+p.h>=ground&&p.vy>=0){
+  p.y=ground-p.h;p.vy=0;p.ground=true;
+ }
+ for(let o of orbs){
+  o.phase+=o.speed;
+  o.y=o.base+Math.sin(o.phase)*65;
+  o.x+=Math.cos(o.phase*.7)*.45;
+ }
+ let a={x:p.x+3,y:p.y+3,w:p.w-6,h:p.h-6};
+ if(spikes.some(s=>hit(a,s))||
+ orbs.some(o=>Math.hypot(p.x+11-o.x,p.y+15-o.y)<o.r+10)||
+ p.y>H){fail()}
+ if(hit(p,portal)){
+  if(level===100){
+   win=true;active=false;
+   info.textContent='🏆 YOU BEAT ALL 100 LEVELS!';
+  }else{
+   level++;lives=Math.min(3,lives+1);start();
+   info.textContent='LEVEL CLEARED! Tap JUMP';
+  }
+ }
+}
+function draw(){
+ ctx.clearRect(0,0,W,H);
+ ctx.fillStyle='#111b35';ctx.fillRect(0,0,W,H);
+ for(let i=0;i<55;i++){
+  ctx.fillStyle='#34436b';ctx.fillRect((i*137)%W,(i*61)%330,2,2);
+ }
+ ctx.fillStyle='#33486b';ctx.fillRect(0,ground,W,H-ground);
+ ctx.fillStyle='#6c9acb';ctx.fillRect(0,ground,W,4);
+ for(let s of spikes){
+  ctx.fillStyle='#ff405f';ctx.beginPath();
+  ctx.moveTo(s.x,ground);ctx.lineTo(s.x+s.w/2,ground-s.h);
+  ctx.lineTo(s.x+s.w,ground);ctx.fill();
+ }
+ for(let o of orbs){
+  ctx.fillStyle='#ff754d';ctx.beginPath();
+  ctx.arc(o.x,o.y,o.r,0,Math.PI*2);ctx.fill();
+ }
+ ctx.fillStyle='#20ffad';ctx.fillRect(portal.x,portal.y,portal.w,portal.h);
+ ctx.fillStyle='#60c8ff';ctx.fillRect(p.x,p.y,p.w,p.h);
+ ctx.fillStyle='white';ctx.fillRect(p.x+13,p.y+7,4,4);
+ ctx.fillStyle='#e7efff';ctx.font='bold 17px Arial';
+ ctx.fillText('LEVEL '+level,15,25);
+ if(!active&&!win){
+  ctx.fillStyle='rgba(0,0,0,.55)';ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center';ctx.fillStyle='white';
+  ctx.font='bold 30px Arial';ctx.fillText('LEVEL '+level,W/2,190);
+  ctx.font='18px Arial';ctx.fillText('TAP JUMP / START',W/2,230);
+  ctx.textAlign='left';
+ }
+ if(win){
+  ctx.fillStyle='rgba(0,0,0,.8)';ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center';ctx.fillStyle='#ffe66d';
+  ctx.font='bold 32px Arial';ctx.fillText('YOU CONQUERED IT!',W/2,190);
+  ctx.fillStyle='white';ctx.font='20px Arial';
+  ctx.fillText('100 LEVELS | FAILS '+deaths,W/2,230);
+  ctx.fillText('TAP JUMP TO PLAY AGAIN',W/2,270);
+  ctx.textAlign='left';
+ }
+}
+function loop(){update();draw();requestAnimationFrame(loop)}
+start();loop();
+</script>
+</body>
+</html>
